@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f5f3ef;
+  --color-beige: #e8e4dc;
+  --color-warm-white: #faf9f7;
+  --color-charcoal: #1a1a1a;
+  --color-soft-black: #2d2d2d;
+  --color-warm-gray: #6b6b6b;
+  --color-light-gray: #f0eeea;
+  --color-accent-gold: #c9a962;
+  --color-accent-terra: #c4785a;
+
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --font-display: var(--font-playfair-display), Playfair Display, serif;
+
+  --shadow-elegant: 0 20px 40px rgba(0, 0, 0, 0.08);
+
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xs: calc(var(--radius) - 6px);
+}
+
+@layer base {
+  :root {
+    /* Cream/Beige Color Palette */
+    --background: 40 20% 97%;
+    --foreground: 30 10% 10%;
+    --card: 40 20% 98%;
+    --card-foreground: 30 10% 10%;
+    --popover: 40 20% 98%;
+    --popover-foreground: 30 10% 10%;
+    --primary: 30 10% 10%;
+    --primary-foreground: 40 20% 97%;
+    --secondary: 40 15% 92%;
+    --secondary-foreground: 30 10% 10%;
+    --muted: 40 15% 90%;
+    --muted-foreground: 30 5% 45%;
+    --accent: 35 40% 55%;
+    --accent-foreground: 40 20% 97%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 10% 85%;
+    --input: 40 10% 85%;
+    --ring: 30 10% 10%;
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-cream text-charcoal antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4d0c8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b4ac;
+}
+
+/* Selection */
+::selection {
+  background: #1a1a1a;
+  color: #f5f3ef;
+}
+
+/* Smooth Text Rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Underline Animation */
+.underline-animation {
+  position: relative;
+  display: inline-block;
+}
+
+.underline-animation::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.underline-animation:hover::after {
+  width: 100%;
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.hover-scale {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Tag/Pill */
+.tag {
+  @apply px-3 py-1 bg-light-gray text-warm-gray text-xs rounded-full transition-all duration-300;
+}
+
+.tag:hover {
+  @apply bg-charcoal text-white;
+}
+
+/* Reveal Animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Image Hover */
+.img-hover-zoom {
+  overflow: hidden;
+}
+
+.img-hover-zoom img {
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.img-hover-zoom:hover img {
+  transform: scale(1.05);
+}
+
+/* Terminal */
+.terminal-elegant {
+  @apply bg-charcoal rounded-2xl overflow-hidden;
+}
+
+.terminal-header {
+  @apply px-4 py-3 bg-soft-black flex items-center gap-2;
+}
+
+.terminal-dot {
+  @apply w-3 h-3 rounded-full;
+}
+
+.terminal-dot.red { @apply bg-[#ff5f57]; }
+.terminal-dot.yellow { @apply bg-[#febc2e]; }
+.terminal-dot.green { @apply bg-[#28c840]; }
