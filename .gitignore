@@ -1,0 +1,16 @@
+# Backend 
+backend/venv/ 
+backend/env/ 
+backend/__pycache__/ 
+backend/.env 
+backend/*.sqlite3 
+backend/wallets/ 
+ 
+# Frontend 
+frontend/node_modules/ 
+frontend/.next/ 
+frontend/.env.local 
+frontend/.env 
+ 
+# System 
+.DS_Store 
