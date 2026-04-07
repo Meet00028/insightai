@@ -14,3 +14,4 @@ frontend/.env
  
 # System 
 .DS_Store 
+backend/temp_data/
