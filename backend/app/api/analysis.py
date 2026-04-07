@@ -9,16 +9,14 @@ import asyncio
 from datetime import datetime
 from typing import Optional, AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import joinedload
-from celery.result import AsyncResult
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.celery_config import celery_app
 from app.models.user import User
 from app.models.dataset import Dataset, DatasetStatus
 from app.models.analysis_session import AnalysisSession, AnalysisStatus
@@ -28,6 +26,7 @@ from app.api.schemas import (
     AnalysisResponse,
     AnalysisStreamEvent
 )
+from app.services.tasks import run_analysis, process_data_task
 
 router = APIRouter()
 
@@ -98,6 +97,7 @@ async def get_analysis_session(
 @router.post("/start", response_model=AnalysisResponse, status_code=status.HTTP_202_ACCEPTED)
 async def start_analysis(
     request: StartAnalysisRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -136,15 +136,13 @@ async def start_analysis(
     await db.commit()
     await db.refresh(analysis)
     
-    # Enqueue analysis task
-    task = celery_app.send_task(
-        "process_data_task",
-        args=[dataset.file_path, request.query, str(analysis.id)],
+    # Enqueue analysis task with FastAPI BackgroundTasks
+    background_tasks.add_task(
+        process_data_task,
+        dataset.file_path,
+        request.query or "Analyze this data and provide insights.",
+        str(analysis.id)
     )
-    
-    # Update analysis with task ID
-    analysis.task_id = task.id
-    await db.commit()
     
     # Update user's analysis count
     current_user.analyses_count += 1
@@ -153,18 +151,32 @@ async def start_analysis(
     return AnalysisResponse.model_validate(analysis)
 
 
-@router.get("/tasks/{task_id}/status")
-async def get_task_status(
-    task_id: str,
-    current_user: User = Depends(get_current_active_user)
+@router.get("/sessions/{analysis_id}/status")
+async def get_analysis_status(
+    analysis_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Get Celery task status."""
-    task_result = AsyncResult(task_id, app=celery_app)
+    """Get analysis session status."""
+    result = await db.execute(
+        select(AnalysisSession).where(
+            AnalysisSession.id == analysis_id,
+            AnalysisSession.user_id == current_user.id
+        )
+    )
+    analysis = result.scalar_one_or_none()
+    
+    if not analysis:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis session not found"
+        )
     
     return {
-        "task_id": task_id,
-        "status": task_result.status,
-        "result": task_result.result if task_result.ready() else None,
+        "analysis_id": analysis_id,
+        "status": analysis.status,
+        "created_at": analysis.created_at,
+        "completed_at": analysis.completed_at,
     }
 
 
@@ -189,12 +201,11 @@ async def cancel_analysis(
             detail="Analysis session not found"
         )
     
-    # Revoke Celery task if running
-    if analysis.task_id and analysis.status in [AnalysisStatus.QUEUED, AnalysisStatus.RUNNING]:
-        celery_app.control.revoke(analysis.task_id, terminate=True)
-    
-    analysis.status = AnalysisStatus.CANCELLED
-    await db.commit()
+    # Note: Cannot easily "cancel" a FastAPI BackgroundTask once it starts
+    # We just update the status in the database
+    if analysis.status in [AnalysisStatus.QUEUED, AnalysisStatus.RUNNING]:
+        analysis.status = AnalysisStatus.CANCELLED
+        await db.commit()
     
     return None
 

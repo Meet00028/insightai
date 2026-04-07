@@ -181,7 +181,6 @@ class AnalysisResponse(BaseModel):
     user_id: Union[str, UUID]
     dataset_id: Union[str, UUID]
     dataset: Optional[DatasetResponse] = None
-    task_id: Optional[str]
     query: Optional[str]
     analysis_type: Optional[str]
     status: str
@@ -266,7 +265,7 @@ class PipelineResponse(BaseModel):
 # ============== Upload Schemas ==============
 
 class UploadResponse(BaseModel):
-    task_id: str
+    task_id: Optional[str] = None
     dataset_id: str
     message: str
     status: str

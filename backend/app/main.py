@@ -102,7 +102,6 @@ async def health_check():
         "services": {
             "api": "up",
             "database": "up",  # TODO: Add actual health checks
-            "redis": "up",
         }
     }
 

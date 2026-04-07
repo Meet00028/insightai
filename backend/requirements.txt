@@ -10,10 +10,6 @@ sqlalchemy==2.0.25
 asyncpg==0.29.0
 alembic==1.13.1
 
-# Celery and Messaging
-celery==5.3.6
-redis==5.0.1
-
 # Data Processing
 pandas==2.1.4
 numpy==1.26.3

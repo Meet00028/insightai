@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/insightai"
     
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-    
     # Security
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"

@@ -9,14 +9,12 @@ import uuid
 import asyncio
 from uuid import UUID
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
-from celery.result import AsyncResult
 import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.worker import process_data_task, celery_app
 from app.core.database import get_db
 from app.models.dataset import Dataset
 from app.models.analysis_session import AnalysisSession
@@ -28,6 +26,7 @@ import pandas as pd
 
 from app.api.auth import get_current_active_user
 from app.models.user import User
+from app.services.tasks import process_data_task
 
 router = APIRouter()
 
@@ -52,6 +51,7 @@ Response format must be exactly:
 
 @router.post("/analyze-data", response_model=AnalysisCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 async def analyze_data(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -89,16 +89,18 @@ async def analyze_data(
             id=job_uuid,
             user_id=current_user.id,
             dataset_id=job_uuid,
-            task_id=job_id,
             status="running"
         )
         db.add(new_session)
         
         await db.commit()
 
-        task = process_data_task.apply_async(
-            args=[file_path, PROMPT_TEMPLATE, str(job_uuid)],
-            task_id=job_id
+        # Enqueue background task
+        background_tasks.add_task(
+            process_data_task,
+            file_path,
+            PROMPT_TEMPLATE,
+            str(job_uuid)
         )
         
         return {
@@ -162,33 +164,6 @@ async def list_sessions(
             status_code=500,
             detail=f"Failed to fetch sessions: {str(e)}"
         )
-
-
-@router.get("/job-status/{job_id}")
-async def job_status(job_id: str):
-    result = AsyncResult(job_id, app=celery_app)
-
-    if result.state == "PENDING":
-        status = "PENDING"
-        return {"job_id": job_id, "status": status}
-
-    if result.state in {"STARTED", "PROGRESS", "RETRY"}:
-        status = "PROCESSING"
-        meta: Optional[dict] = None
-        try:
-            meta = dict(result.info) if isinstance(result.info, dict) else None
-        except Exception:
-            meta = None
-        payload: Dict[str, Any] = {"job_id": job_id, "status": status}
-        if meta:
-            payload["meta"] = meta
-        return payload
-
-    if result.state == "SUCCESS":
-        return {"job_id": job_id, "status": "SUCCESS", "result": result.result}
-
-    error_message = str(result.result)
-    return {"job_id": job_id, "status": "FAILED", "error": error_message}
 
 
 @router.get("/download/{session_id}")

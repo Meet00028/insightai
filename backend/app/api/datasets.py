@@ -9,7 +9,7 @@ import aiofiles
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 
@@ -24,7 +24,7 @@ from app.api.schemas import (
     DatasetPreviewResponse,
     UploadResponse
 )
-from app.core.celery_config import celery_app
+from app.services.tasks import process_dataset
 
 router = APIRouter()
 
@@ -95,6 +95,7 @@ async def get_dataset(
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_dataset(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     name: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
@@ -147,19 +148,14 @@ async def upload_dataset(
         current_user.storage_used_bytes += file_size
         await db.commit()
         
-        # Enqueue processing task
-        task = celery_app.send_task(
-            "app.services.tasks.process_dataset",
-            args=[str(dataset.id), file_path],
-            queue="data_processing"
-        )
+        # Enqueue processing task with FastAPI BackgroundTasks
+        background_tasks.add_task(process_dataset, str(dataset.id), file_path)
         
-        # Update dataset with task ID
+        # Update dataset status
         dataset.status = DatasetStatus.PROCESSING
         await db.commit()
         
         return UploadResponse(
-            task_id=task.id,
             dataset_id=str(dataset.id),
             message="File uploaded successfully. Processing started.",
             status="processing"

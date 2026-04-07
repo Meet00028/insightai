@@ -24,20 +24,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis
-  redis:
-    image: redis:7-alpine
-    container_name: insightai-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   # FastAPI Application
   api:
     build:
@@ -46,7 +32,6 @@ services:
     container_name: insightai-api
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/insightai
-      - REDIS_URL=redis://redis:6379/0
       - DEBUG=True
       - ENVIRONMENT=development
     ports:
@@ -57,44 +42,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  # Celery Worker
-  celery-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: insightai-celery
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/insightai
-      - REDIS_URL=redis://redis:6379/0
-      - DEBUG=True
-    volumes:
-      - ./temp_data:/app/temp_data
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: celery -A app.core.celery_config.celery_app worker --loglevel=info -Q celery,data_processing,analysis
-
-  # Celery Beat (for scheduled tasks)
-  celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: insightai-beat
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/insightai
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - redis
-      - postgres
-    command: celery -A app.core.celery_config.celery_app beat --loglevel=info
 
 volumes:
   postgres_data:
-  redis_data:

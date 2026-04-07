@@ -29,9 +29,6 @@ class AnalysisSession(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     dataset_id = Column(UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True)
     
-    # Celery task tracking
-    task_id = Column(String(255), nullable=True, index=True, unique=True)
-    
     # Analysis info
     query = Column(Text, nullable=True)  # User's natural language query
     analysis_type = Column(String(50), nullable=True)  # "cleaning", "exploration", "visualization", etc.
@@ -64,14 +61,13 @@ class AnalysisSession(Base):
     dataset = relationship("Dataset", back_populates="analysis_sessions")
     
     def __repr__(self):
-        return f"<AnalysisSession(id={self.id}, status={self.status}, task_id={self.task_id})>"
+        return f"<AnalysisSession(id={self.id}, status={self.status})>"
     
     def to_dict(self, include_thoughts: bool = False):
         data = {
             "id": str(self.id),
             "user_id": str(self.user_id),
             "dataset_id": str(self.dataset_id),
-            "task_id": self.task_id,
             "query": self.query,
             "analysis_type": self.analysis_type,
             "status": self.status.value,
