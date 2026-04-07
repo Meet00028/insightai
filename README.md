@@ -1,4 +1,13 @@
-# InsightAI - AI-Powered Data Analytics Platform
+--- 
+title: InsightAI API 
+emoji: 🚀 
+colorFrom: blue 
+colorTo: green 
+sdk: docker 
+pinned: false 
+--- 
+ 
+ # InsightAI Backend
 
 InsightAI is a comprehensive agentic data analytics SaaS platform that allows users to upload CSV datasets, have an AI agent analyze and clean the data in real-time, and generate actionable insights with beautiful visualizations.
 
