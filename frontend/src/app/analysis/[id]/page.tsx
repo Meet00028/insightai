@@ -6,11 +6,9 @@ import Link from "next/link"
 import { ArrowLeft, Send, Sparkles, AlertCircle, Terminal, History as HistoryIcon, Download, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { motion, AnimatePresence } from "framer-motion"
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { AnalysisSidebar } from "@/components/chat/AnalysisSidebar"
-import { ChartRenderer } from "@/components/chat/ChartRenderer"
 
 type AnalysisResult = {
   insights: string[]
@@ -206,6 +204,35 @@ export default function AnalysisDetailPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages.length])
 
+  const renderMessageContent = (content: string) => { 
+    try { 
+      // 1. Try to parse the text as JSON 
+      const parsedData = JSON.parse(content); 
+      
+      // 2. If it is chart data, render the Recharts component! 
+      if (parsedData.is_chart_data && parsedData.type === 'bar') { 
+        return ( 
+          <div className="w-full h-64 mt-4 bg-white text-black p-4 rounded-lg shadow-sm border border-gray-200"> 
+            <h4 className="text-center font-semibold mb-4">{parsedData.title}</h4> 
+            <ResponsiveContainer width="100%" height="100%"> 
+              <BarChart data={parsedData.data}> 
+                <CartesianGrid strokeDasharray="3 3" opacity={0.5} /> 
+                <XAxis dataKey={parsedData.xAxis} tick={{ fontSize: 12 }} /> 
+                <YAxis tick={{ fontSize: 12 }} /> 
+                <Tooltip /> 
+                <Bar dataKey={parsedData.yAxis} fill="#000000" radius={[4, 4, 0, 0]} /> 
+              </BarChart> 
+            </ResponsiveContainer> 
+          </div> 
+        ); 
+      } 
+    } catch (e) { 
+      // 3. If it fails to parse (because it's normal text), just return the text! 
+    } 
+    
+    return <p className="whitespace-pre-wrap">{content}</p>; 
+  }; 
+
   if (!isMounted) return null
 
   return (
@@ -293,41 +320,7 @@ export default function AnalysisDetailPage() {
                     {displayMessages.map((m) => (
                       <motion.div key={m.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                         <div className={cn("max-w-[85%] rounded-3xl px-5 py-3 shadow-sm", m.role === "user" ? "bg-charcoal text-white" : "bg-white border border-beige text-charcoal")}>
-                          {(() => {
-                            try {
-                              // Attempt to parse the message as JSON
-                              const parsedData = JSON.parse(m.content);
-
-                              // 1. Handle Chart Data
-                              if (parsedData.is_chart_data) {
-                                return <ChartRenderer jsonString={m.content} />;
-                              }
-
-                              // 2. Handle Export Data 
-                              if (parsedData.is_export) { 
-                                return ( 
-                                  <div className="flex items-center justify-between p-5 bg-white border border-gray-200 shadow-sm rounded-xl mt-3 w-full max-w-md"> 
-                                    <div className="flex flex-col gap-1"> 
-                                      <span className="text-sm font-semibold text-gray-900">Dataset Cleaned</span> 
-                                      <span className="text-xs text-gray-500">{parsedData.message}</span> 
-                                    </div> 
-                                    <button 
-                                      onClick={() => handleDownload(parsedData.csv_data, parsedData.filename || 'export.csv')} 
-                                      className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium" 
-                                    > 
-                                      Download CSV 
-                                    </button> 
-                                  </div> 
-                                ); 
-                              }
-                              // Default fallback if JSON parsing succeeds but no specific handler matches
-                              return <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>;
-
-                            } catch (error) {
-                              // 3. Fallback: If it's not JSON, render as normal text/markdown
-                              return <div className="prose prose-sm max-w-none">{m.content}</div>;
-                            }
-                          })()}
+                          {renderMessageContent(m.content)}
                         </div>
                       </motion.div>
                     ))}
