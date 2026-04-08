@@ -206,30 +206,45 @@ export default function AnalysisDetailPage() {
 
   const renderMessageContent = (content: string) => { 
     try { 
-      // 1. Try to parse the text as JSON 
-      const parsedData = JSON.parse(content); 
-      
-      // 2. If it is chart data, render the Recharts component! 
-      if (parsedData.is_chart_data && parsedData.type === 'bar') { 
-        return ( 
-          <div className="w-full h-64 mt-4 bg-white text-black p-4 rounded-lg shadow-sm border border-gray-200"> 
-            <h4 className="text-center font-semibold mb-4">{parsedData.title}</h4> 
-            <ResponsiveContainer width="100%" height="100%"> 
-              <BarChart data={parsedData.data}> 
-                <CartesianGrid strokeDasharray="3 3" opacity={0.5} /> 
-                <XAxis dataKey={parsedData.xAxis} tick={{ fontSize: 12 }} /> 
-                <YAxis tick={{ fontSize: 12 }} /> 
-                <Tooltip /> 
-                <Bar dataKey={parsedData.yAxis} fill="#000000" radius={[4, 4, 0, 0]} /> 
-              </BarChart> 
-            </ResponsiveContainer> 
-          </div> 
-        ); 
+      // 1. Find where the JSON actually starts and ends 
+      const startIndex = content.indexOf('{'); 
+      const endIndex = content.lastIndexOf('}'); 
+
+      // 2. If we found brackets, extract that specific chunk 
+      if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) { 
+        const jsonString = content.substring(startIndex, endIndex + 1); 
+        const parsedData = JSON.parse(jsonString); 
+
+        if (parsedData.is_chart_data && parsedData.type === 'bar') { 
+          // Extract any conversational text the AI said before the chart 
+          const textBefore = content.substring(0, startIndex).trim(); 
+
+          return ( 
+            <div className="flex flex-col gap-2"> 
+              {/* Print the polite text if it exists */} 
+              {textBefore && <p className="whitespace-pre-wrap mb-2">{textBefore}</p>} 
+              
+              {/* Render the actual chart */} 
+              <div className="w-full h-64 bg-white text-black p-4 rounded-lg shadow-sm border border-gray-200"> 
+                <h4 className="text-center font-semibold mb-4">{parsedData.title}</h4> 
+                <ResponsiveContainer width="100%" height="100%"> 
+                  <BarChart data={parsedData.data}> 
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.5} /> 
+                    <XAxis dataKey={parsedData.xAxis} tick={{ fontSize: 12 }} /> 
+                    <YAxis tick={{ fontSize: 12 }} /> 
+                    <Tooltip /> 
+                    <Bar dataKey={parsedData.yAxis} fill="#000000" radius={[4, 4, 0, 0]} /> 
+                  </BarChart> 
+                </ResponsiveContainer> 
+              </div> 
+            </div> 
+          ); 
+        } 
       } 
     } catch (e) { 
-      // 3. If it fails to parse (because it's normal text), just return the text! 
+      // 3. If it completely fails, fall through to raw text 
     } 
-    
+
     return <p className="whitespace-pre-wrap">{content}</p>; 
   }; 
 
