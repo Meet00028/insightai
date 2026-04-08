@@ -217,7 +217,7 @@ export default function AnalysisDetailPage() {
 
         if (parsedData.is_chart_data && parsedData.type === 'bar') { 
           // Extract any conversational text the AI said before the chart 
-          const textBefore = content.substring(0, startIndex).trim(); 
+          const textBefore = content.substring(0, startIndex).replace(/```json/gi, '').replace(/```/g, '').trim(); 
 
           return ( 
             <div className="flex flex-col gap-2"> 
