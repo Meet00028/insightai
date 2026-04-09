@@ -8,55 +8,152 @@ datasource db {
 }
 
 model users {
-  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email              String             @unique @db.VarChar(255)
-  hashed_password    String             @db.VarChar(255)
-  full_name          String?            @db.VarChar(255)
-  is_active          Boolean            @default(true)
-  is_verified        Boolean            @default(false)
-  is_superuser       Boolean            @default(false)
-  subscription_tier  String             @default("free")
-  datasets_count     Int                @default(0)
-  analyses_count     Int                @default(0)
-  storage_used_bytes Int                @default(0)
-  created_at         DateTime           @default(now()) @db.Timestamp(6)
-  updated_at         DateTime           @default(now()) @db.Timestamp(6)
-  last_login         DateTime?          @db.Timestamp(6)
+  id                 String               @id @db.Uuid
+  email              String               @unique(map: "ix_users_email") @db.VarChar(255)
+  hashed_password    String               @db.VarChar(255)
+  full_name          String?              @db.VarChar(255)
+  is_active          Boolean
+  is_verified        Boolean
+  is_superuser       Boolean
+  subscription_tier  subscriptiontier
+  datasets_count     Int?
+  analyses_count     Int?
+  storage_used_bytes Int?
+  created_at         DateTime             @db.Timestamp(6)
+  updated_at         DateTime             @db.Timestamp(6)
+  last_login         DateTime?            @db.Timestamp(6)
+  analysis_sessions  analysis_sessions[]
+  cleaning_pipelines cleaning_pipelines[]
+  datasets           datasets[]
   accounts           Account[]
   sessions           Session[]
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String  @db.Uuid
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+model analysis_sessions {
+  id               String         @id @db.Uuid
+  user_id          String         @db.Uuid
+  dataset_id       String         @db.Uuid
+  query            String?
+  analysis_type    String?        @db.VarChar(50)
+  status           analysisstatus
+  error_message    String?
+  thought_process  Json?          @db.Json
+  result_summary   Json?          @db.Json
+  generated_code   String?
+  output_files     Json?          @db.Json
+  insights         Json?          @db.Json
+  started_at       DateTime?      @db.Timestamp(6)
+  completed_at     DateTime?      @db.Timestamp(6)
+  duration_seconds Int?
+  created_at       DateTime       @db.Timestamp(6)
+  updated_at       DateTime       @db.Timestamp(6)
+  datasets         datasets       @relation(fields: [dataset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+  @@index([dataset_id], map: "ix_analysis_sessions_dataset_id")
+  @@index([user_id], map: "ix_analysis_sessions_user_id")
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String   @db.Uuid
-  expires      DateTime
-  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+model cleaning_pipelines {
+  id          String    @id @db.Uuid
+  user_id     String    @db.Uuid
+  dataset_id  String?   @db.Uuid
+  name        String    @db.VarChar(255)
+  description String?   @db.VarChar(1000)
+  steps       Json      @db.Json
+  is_template Boolean
+  is_public   Boolean
+  usage_count Int?
+  created_at  DateTime  @db.Timestamp(6)
+  updated_at  DateTime  @db.Timestamp(6)
+  datasets    datasets? @relation(fields: [dataset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([dataset_id], map: "ix_cleaning_pipelines_dataset_id")
+  @@index([user_id], map: "ix_cleaning_pipelines_user_id")
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+model datasets {
+  id                   String               @id @db.Uuid
+  user_id              String               @db.Uuid
+  name                 String               @db.VarChar(255)
+  file_path            String               @db.VarChar(512)
+  original_filename    String               @db.VarChar(255)
+  file_size            Int
+  file_hash            String?              @db.VarChar(64)
+  row_count            Int?
+  column_count         Int?
+  column_schema        Json?                @db.Json
+  status               datasetstatus
+  error_message        String?              @db.VarChar(1000)
+  data_health_score    Float?
+  missing_values_count Int?
+  duplicate_rows_count Int?
+  cleaned_file_path    String?              @db.VarChar(512)
+  cleaning_summary     Json?                @db.Json
+  created_at           DateTime             @db.Timestamp(6)
+  updated_at           DateTime             @db.Timestamp(6)
+  processed_at         DateTime?            @db.Timestamp(6)
+  analysis_sessions    analysis_sessions[]
+  cleaning_pipelines   cleaning_pipelines[]
+  users                users                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([identifier, token])
+  @@index([user_id], map: "ix_datasets_user_id")
+}
+
+enum analysisstatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum datasetstatus {
+  PENDING
+  UPLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum subscriptiontier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model Account { 
+  id                 String  @id @default(cuid()) 
+  userId             String  @db.Uuid 
+  type               String 
+  provider           String 
+  providerAccountId  String 
+  refresh_token      String? @db.Text 
+  access_token       String? @db.Text 
+  expires_at         Int? 
+  token_type         String? 
+  scope              String? 
+  id_token           String? @db.Text 
+  session_state      String? 
+ 
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade) 
+ 
+  @@unique([provider, providerAccountId]) 
+} 
+ 
+ model Session { 
+  id           String   @id @default(cuid()) 
+  sessionToken String   @unique 
+  userId       String   @db.Uuid 
+  expires      DateTime 
+  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade) 
+} 
+ 
+ model VerificationToken { 
+  identifier String 
+  token      String   @unique 
+  expires    DateTime 
+ 
+  @@unique([identifier, token]) 
 }
