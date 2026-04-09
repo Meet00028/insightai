@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { useSession, signOut } from "next-auth/react" // <-- Added NextAuth Bridge
 
 interface User {
   id: string
@@ -22,6 +23,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // 1. Listen to Google / NextAuth
+  const { data: session, status } = useSession() 
+  
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -38,9 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(currentToken)
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
+        headers: { Authorization: `Bearer ${currentToken}` },
       })
 
       if (response.ok) {
@@ -48,7 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData)
         localStorage.setItem("user", JSON.stringify(userData))
       } else {
-        // Token might be invalid or expired
         if (response.status === 401) {
           logout()
         }
@@ -60,6 +61,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // 2. THE NEURAL LINK: Synchronize Google Session with Custom State
+  useEffect(() => {
+    if (status === "loading") {
+      setIsLoading(true)
+      return
+    }
+
+    if (status === "authenticated" && session?.user) {
+      // Google logged us in! Inject data so the frontend knows who you are.
+      setUser({
+        id: session.user.id || "google-sso-user",
+        email: session.user.email || "",
+        full_name: session.user.name || "Analyst",
+        is_active: true,
+        is_verified: true,
+      })
+      
+      // Provide a proxy token so the frontend doesn't kick you out during uploads
+      const proxyToken = (session as any)?.accessToken || "google-sso-active"
+      setToken(proxyToken)
+      setIsLoading(false)
+    } else if (status === "unauthenticated") {
+      // If not logged in with Google, fallback to classic email/password check
+      refreshUser()
+    }
+  }, [session, status, refreshUser])
+
   const login = (newToken: string, userData?: User) => {
     localStorage.setItem("token", newToken)
     setToken(newToken)
@@ -70,17 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser()
   }
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     setUser(null)
     setToken(null)
+    
+    // Log out of Google as well, then redirect
+    await signOut({ redirect: false })
     window.location.href = "/"
   }
-
-  useEffect(() => {
-    refreshUser()
-  }, [refreshUser])
 
   return (
     <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser }}>
