@@ -30,36 +30,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const refreshUser = useCallback(async () => {
-    const currentToken = localStorage.getItem("token")
-    if (!currentToken) {
-      setUser(null)
-      setToken(null)
-      setIsLoading(false)
-      return
-    }
-
-    setToken(currentToken)
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${currentToken}` },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
-        localStorage.setItem("user", JSON.stringify(userData))
-      } else {
-        if (response.status === 401) {
-          logout()
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch user profile", error)
-    } finally {
-      setIsLoading(false)
-    }
+  const logout = useCallback(async () => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    setUser(null)
+    setToken(null)
+    
+    // Log out of Google as well, then redirect
+    await signOut({ redirect: false })
+    window.location.href = "/"
   }, [])
+
+  const refreshUser = useCallback(async () => { 
+    // 1. If Google already authenticated us, DO NOT wipe the state. Just stop here. 
+    if (status === "authenticated") { 
+      setIsLoading(false); 
+      return; 
+    } 
+
+    const currentToken = localStorage.getItem("token") 
+    if (!currentToken) { 
+      setUser(null) 
+      setToken(null) 
+      setIsLoading(false) 
+      return 
+    } 
+
+    setToken(currentToken) 
+    try { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/auth/me`, { 
+        headers: { Authorization: `Bearer ${currentToken}` }, 
+      }) 
+
+      if (response.ok) { 
+        const userData = await response.json() 
+        setUser(userData) 
+        localStorage.setItem("user", JSON.stringify(userData)) 
+      } else { 
+        if (response.status === 401) { 
+          // Only log out if we are ALSO not authenticated by Google 
+          // status !== "authenticated" is guaranteed here because of the early return above.
+          logout() 
+        } 
+      } 
+    } catch (error) { 
+      console.error("Failed to fetch user profile", error) 
+    } finally { 
+      setIsLoading(false) 
+    } 
+  }, [status, logout])
 
   // 2. THE NEURAL LINK: Synchronize Google Session with Custom State
   useEffect(() => {
@@ -96,17 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData)
     }
     refreshUser()
-  }
-
-  const logout = async () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    setUser(null)
-    setToken(null)
-    
-    // Log out of Google as well, then redirect
-    await signOut({ redirect: false })
-    window.location.href = "/"
   }
 
   return (
