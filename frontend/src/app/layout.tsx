@@ -14,7 +14,7 @@ const playfairDisplay = Playfair_Display({
   style: ["italic", "normal"],
 });
 
-import { Providers } from "@/components/providers";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "InsightAI - Turn data into insights with AI",
