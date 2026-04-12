@@ -62,7 +62,19 @@ export default function RegisterPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.detail || "Registration failed")
+        let errorMessage = "Registration failed"
+        
+        if (typeof data.detail === "string") {
+          // Handles standard custom FastAPI errors
+          errorMessage = data.detail
+        } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+          // Extracts the exact Pydantic validation message (e.g., "String should have at least 8 characters")
+          errorMessage = data.detail[0].msg
+        } else if (data.message) {
+          errorMessage = data.message
+        }
+
+        throw new Error(errorMessage)
       }
 
       // After registration, log the user in automatically
