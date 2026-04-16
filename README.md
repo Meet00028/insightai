@@ -1,4 +1,4 @@
-# 🧠 InsightAI: Autonomous Agentic Data Platform
+# InsightAI: Autonomous Agentic Data Platform
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi)
@@ -8,7 +8,7 @@
 
 InsightAI is an enterprise-grade, split-brain web application that transforms static datasets into interactive insights. By coupling a high-performance Next.js frontend with an asynchronous Python/FastAPI backend, it deploys a LangChain-powered ReAct agent capable of dynamically writing and executing Python code to analyze user data in real-time.
 
-## 🏗️ System Architecture
+## System Architecture
 
 InsightAI operates on a decoupled microservices architecture, sharing a highly synchronized, single-source-of-truth PostgreSQL database.
 
