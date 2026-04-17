@@ -70,8 +70,6 @@ async def chat_with_dataset(
             temperature=0
         )
 
-        # Create the agent
-        # Note: allow_dangerous_code=True is required for pandas agent to execute python code
         agent = create_pandas_dataframe_agent(
             llm,
             df,
@@ -79,44 +77,52 @@ async def chat_with_dataset(
             agent_type="tool-calling",
             allow_dangerous_code=True,
             prefix=(
-                "You are an elite Autonomous Data Analyst. "
-                "If the user asks a question that requires data cleaning (e.g., converting a string column to datetime, handling missing values, or dropping rows), "
-                "YOU HAVE PERMISSION TO WRITE AND EXECUTE THE PANDAS CODE TO FIX THE DATAFRAME IN MEMORY before answering. "
-                "Always convert date columns to proper datetime objects before doing time-series analysis.\n\n"
-                "If the user explicitly asks to visualize data, plot a chart, or show a trend, YOU MUST NOT just explain it. "
-                "You must extract the relevant data from the dataframe and output a JSON code block. "
-                "The JSON MUST follow this exact structure:\n"
+                "You are InsightAI, an elite data scientist and Python expert. "
+                "You have access to a pandas DataFrame. Write safe, efficient Pandas code to answer the user's question.\n\n"
+                "RULES:\n"
+                "1. NEVER read or print the entire dataset into text. Use only the columns provided in the context.\n"
+                "2. Return exact numerical insights when calculating statistics.\n"
+                "3. Keep reasoning concise, mathematical, and highly accurate.\n\n"
+                "CHART FORMATTING: If the user asks to visualize data or show trends, output a JSON code block:\n"
                 "```json\n"
                 "{\n"
                 '  "is_chart_data": true,\n'
-                '  "type": "bar", // or "line" or "pie"\n'
-                '  "title": "A descriptive title",\n'
-                '  "xAxis": "column_name_for_x",\n'
-                '  "yAxis": "column_name_for_y",\n'
-                '  "data": [{"column_name_for_x": "Label", "column_name_for_y": 123}, ...]\n'
+                '  "type": "bar",\n'
+                '  "title": "Descriptive title",\n'
+                '  "xAxis": "column_name",\n'
+                '  "yAxis": "column_name",\n'
+                '  "data": [{"x": "label", "y": 123}, ...]\n'
                 "}\n"
-                "```\n"
-                "The 'data' array MUST contain the actual calculated values from the dataframe. "
-                "Do not include any other markdown code blocks in that specific response, just the JSON block and a brief text explanation above it.\n\n"
-                "If the user asks to export, download, or save the cleaned data, YOU MUST write the current state of the pandas dataframe to a file named "
-                f"'{settings.UPLOAD_DIR}/{request.session_id}_cleaned.csv'. After successfully saving it, output a JSON code block exactly like this:\n"
+                "```\n\n"
+                "EXPORT FORMATTING: If the user asks to export/download/save cleaned data, write the dataframe to "
+                f"'{settings.UPLOAD_DIR}/{request.session_id}_cleaned.csv' and output:\n"
                 "```json\n"
                 "{\n"
                 '  "is_export": true,\n'
                 '  "message": "Your cleaned dataset is ready for download."\n'
                 "}\n"
-                "```\n"
-                "Do not output any other text or markdown when exporting."
+                "```"
             )
         )
 
-        # 4. Prepare the prompt with history if available
-        full_query = ""
-        if request.history:
-            history_str = "\n".join([f"{h.role}: {h.content}" for h in request.history])
-            full_query = f"Previous conversation:\n{history_str}\n\nUser: {request.message}"
-        else:
-            full_query = request.message
+        # 3. Extract lightweight metadata to avoid token limit errors
+        column_names = df.columns.tolist()
+        data_types = df.dtypes.astype(str).to_dict()
+        sample_data = df.head(3).to_markdown()
+
+        # 4. Build the Clean Enterprise Prompt
+        full_query = f"""
+CRITICAL DATA CONTEXT:
+- Columns available: {column_names}
+- Data types: {data_types}
+- Sample Data (first 3 rows):
+{sample_data}
+
+USER QUESTION:
+"{request.message}"
+
+Please analyze this using the columns provided. Do not read the entire dataset into text.
+"""
 
         # 5. Execute the query
         response = await agent.ainvoke({"input": full_query})
