@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model users {
+model User {
   id                 String               @id @db.Uuid
   email              String               @unique(map: "ix_users_email") @db.VarChar(255)
   hashed_password    String               @db.VarChar(255)
@@ -27,6 +27,8 @@ model users {
   datasets           datasets[]
   accounts           Account[]
   sessions           Session[]
+
+  @@map("users")
 }
 
 model analysis_sessions {
@@ -48,7 +50,7 @@ model analysis_sessions {
   created_at       DateTime       @db.Timestamp(6)
   updated_at       DateTime       @db.Timestamp(6)
   datasets         datasets       @relation(fields: [dataset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users            users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user             User           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([dataset_id], map: "ix_analysis_sessions_dataset_id")
   @@index([user_id], map: "ix_analysis_sessions_user_id")
@@ -67,7 +69,7 @@ model cleaning_pipelines {
   created_at  DateTime  @db.Timestamp(6)
   updated_at  DateTime  @db.Timestamp(6)
   datasets    datasets? @relation(fields: [dataset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([dataset_id], map: "ix_cleaning_pipelines_dataset_id")
   @@index([user_id], map: "ix_cleaning_pipelines_user_id")
@@ -96,7 +98,7 @@ model datasets {
   processed_at         DateTime?            @db.Timestamp(6)
   analysis_sessions    analysis_sessions[]
   cleaning_pipelines   cleaning_pipelines[]
-  users                users                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                 User                 @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([user_id], map: "ix_datasets_user_id")
 }
@@ -137,7 +139,7 @@ model Account {
   id_token           String? @db.Text 
   session_state      String? 
  
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade) 
  
   @@unique([provider, providerAccountId]) 
 } 
@@ -147,7 +149,7 @@ model Account {
   sessionToken String   @unique 
   userId       String   @db.Uuid 
   expires      DateTime 
-  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade) 
 } 
  
  model VerificationToken { 
