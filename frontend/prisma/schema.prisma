@@ -6,22 +6,33 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 model User {
-  id                 String               @id @db.Uuid
-  email              String               @unique(map: "ix_users_email") @db.VarChar(255)
-  hashed_password    String               @db.VarChar(255)
-  full_name          String?              @db.VarChar(255)
-  is_active          Boolean
-  is_verified        Boolean
-  is_superuser       Boolean
-  subscription_tier  subscriptiontier
-  datasets_count     Int?
-  analyses_count     Int?
-  storage_used_bytes Int?
-  created_at         DateTime             @db.Timestamp(6)
-  updated_at         DateTime             @db.Timestamp(6)
-  last_login         DateTime?            @db.Timestamp(6)
+  // 1. Tell Prisma to auto-generate the UUID
+  id                 String            @id @default(uuid()) @db.Uuid
+  
+  // 2. NextAuth required fields
+  name               String?           @db.VarChar(255)
+  email              String            @unique(map: "ix_users_email") @db.VarChar(255)
+  emailVerified      DateTime?         @db.Timestamp(6)
+  image              String?           @db.Text
+  
+  // 3. FastAPI fields (relaxed for OAuth)
+  hashed_password    String?           @db.VarChar(255) // Optional for Google users
+  full_name          String?           @db.VarChar(255)
+  is_active          Boolean           @default(true)   // Auto-set to true
+  is_verified        Boolean           @default(false)
+  is_superuser       Boolean           @default(false)
+  subscription_tier  subscriptiontier  @default(FREE)   // Auto-set to FREE
+  
+  // 4. Metrics & Timestamps
+  datasets_count     Int?              @default(0)
+  analyses_count     Int?              @default(0)
+  storage_used_bytes Int?              @default(0)
+  created_at         DateTime          @default(now()) @db.Timestamp(6)
+  updated_at         DateTime          @updatedAt @db.Timestamp(6)
+  last_login         DateTime?         @db.Timestamp(6)
+  
+  // Relationships
   analysis_sessions  analysis_sessions[]
   cleaning_pipelines cleaning_pipelines[]
   datasets           datasets[]
@@ -30,6 +41,7 @@ model User {
 
   @@map("users")
 }
+
 
 model analysis_sessions {
   id               String         @id @db.Uuid
