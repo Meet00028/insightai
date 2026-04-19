@@ -29,15 +29,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await db.user.findUnique({
+        const user = await db.users.findUnique({
           where: { email: credentials.email as string },
         })
 
-        if (!user || !user.password) return null
+        if (!user || !user.hashed_password) return null
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password as string,
-          user.password
+          user.hashed_password
         )
 
         if (!isPasswordValid) return null
@@ -45,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: user.full_name,
         }
       },
     }),

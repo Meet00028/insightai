@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const existingUser = await db.user.findUnique({
+    const existingUser = await db.users.findUnique({
       where: { email },
     })
 
@@ -26,11 +26,18 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const user = await db.user.create({
+    const user = await db.users.create({
       data: {
-        name,
+        id: crypto.randomUUID(),
+        full_name: name,
         email,
-        password: hashedPassword,
+        hashed_password: hashedPassword,
+        is_active: true,
+        is_verified: false,
+        is_superuser: false,
+        subscription_tier: "FREE",
+        created_at: new Date(),
+        updated_at: new Date(),
       },
     })
 
